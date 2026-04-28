@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オープンダイアローグ</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; background: #f5f5f0; min-height: 100vh; }
+.app { max-width: 480px; margin: 0 auto; padding: 1rem; }
+.header { text-align: center; padding: 1.5rem 0 1rem; }
+.header h1 { font-size: 20px; font-weight: 500; color: #1a1a1a; }
+.header p { font-size: 13px; color: #888; margin-top: 4px; }
+.status-bar { display: flex; gap: 8px; margin-bottom: 1rem; }
+.chip { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 1px solid #ddd; background: #fff; color: #888; }
+.chip.posted { background: #e8f5e9; border-color: #81c784; color: #2e7d32; }
+.messages { margin-bottom: 1rem; }
+.message { margin-bottom: 12px; padding: 12px 14px; border-radius: 12px; background: #fff; border: 1px solid #eee; }
+.message.yuma { border-left: 3px solid #5DCAA5; }
+.message.takao { border-left: 3px solid #85B7EB; }
+.message.tomoko { border-left: 3px solid #ED93B1; }
+.message.reflecting { border-left: 3px solid #AFA9EC; background: #fafafa; }
+.msg-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.msg-name { font-size: 13px; font-weight: 500; color: #333; }
+.msg-time { font-size: 11px; color: #aaa; }
+.msg-body { font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap; }
+.reflecting-label { font-size: 11px; color: #9c88cc; margin-bottom: 10px; letter-spacing: 0.05em; }
+.r-turn { margin-bottom: 12px; }
+.r-name { font-size: 12px; font-weight: 500; color: #666; margin-bottom: 4px; }
+.r-text { font-size: 14px; color: #333; line-height: 1.7; }
+.input-card { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; }
+.speaker-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.spk-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 13px; cursor: pointer; color: #666; }
+.spk-btn.active-yuma { background: #e8f5ee; border-color: #5DCAA5; color: #085041; }
+.spk-btn.active-takao { background: #e6f1fb; border-color: #85B7EB; color: #0C447C; }
+.spk-btn.active-tomoko { background: #fbeaf0; border-color: #ED93B1; color: #72243E; }
+textarea { width: 100%; min-height: 90px; padding: 10px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; color: #333; background: #fafafa; line-height: 1.6; }
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.btn { padding: 9px 16px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 13px; cursor: pointer; color: #333; flex: 1; }
+.btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.btn.reflect { border-color: #AFA9EC; color: #3C3489; }
+.empty { text-align: center; padding: 2rem; color: #bbb; font-size: 14px; }
+.loading { text-align: center; padding: 1rem; color: #888; font-size: 13px; }
+.session-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.round-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #fff; border: 1px solid #ddd; color: #666; }
+.clear-link { font-size: 12px; color: #bbb; background: none; border: none; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>オープンダイアローグ</h1>
+    <p>AIタマキ・AIタナカによるリフレクティング</p>
+  </div>
+  <div class="session-row">
+    <span class="round-badge" id="round-badge">第1周</span>
+    <button class="clear-link" onclick="clearSession()">セッションをクリア</button>
+  </div>
+  <div class="status-bar">
+    <span class="chip" id="chip-yuma">ユウマ</span>
+    <span class="chip" id="chip-takao">タカオ</span>
+    <span class="chip" id="chip-tomoko">トモコ</span>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty">投稿をお待ちしています</div>
+  </div>
+  <div class="input-card">
+    <div class="speaker-row">
+      <button class="spk-btn active-yuma" id="btn-yuma" onclick="selectSpeaker('yuma')">ユウマ</button>
+      <button class="spk-btn" id="btn-takao" onclick="selectSpeaker('takao')">タカオ</button>
+      <button class="spk-btn" id="btn-tomoko" onclick="selectSpeaker('tomoko')">トモコ</button>
+    </div>
+    <textarea id="post-text" placeholder="今思っていることを話してください…"></textarea>
+    <div class="btn-row">
+      <button class="btn" onclick="document.getElementById('post-text').value=''">クリア</button>
+      <button class="btn primary" onclick="addPost()">投稿する</button>
+    </div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn reflect" onclick="requestReflecting()">AIタマキ・AIタナカにリフレクティングを依頼する</button>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA0KizrUQTFC9hlsoqwa4d8Bq5KdLpY1X0",
+  authDomain: "open-dialogue-b9658.firebaseapp.com",
+  databaseURL: "https://open-dialogue-b9658-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "open-dialogue-b9658",
+  storageBucket: "open-dialogue-b9658.firebasestorage.app",
+  messagingSenderId: "567739922959",
+  appId: "1:567739922959:web:5d8b987dba3ceb372fc17a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const postsCol = collection(db, 'posts');
+
+const ANTHROPIC_API_KEY = 'YOUR_ANTHROPIC_API_KEY_HERE';
+
+let currentSpeaker = 'yuma';
+let round = 1;
+const postedBy = new Set();
+const names = { yuma: 'ユウマ', takao: 'タカオ', tomoko: 'トモコ' };
+
+function selectSpeaker(id) {
+  currentSpeaker = id;
+  ['yuma','takao','tomoko'].forEach(s => {
+    const btn = document.getElementById('btn-' + s);
+    btn.className = 'spk-btn' + (s === id ? ' active-' + s : '');
+  });
+}
+
+function getTime() {
+  const now = new Date();
+  return now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+
+window.selectSpeaker = selectSpeaker;
+
+window.addPost = async function() {
+  const text = document.getElementById('post-text').value.trim();
+  if (!text) return;
+  await addDoc(postsCol, {
+    speaker: currentSpeaker,
+    text,
+    time: getTime(),
+    type: 'post',
+    createdAt: Date.now()
+  });
+  document.getElementById('post-text').value = '';
+};
+
+window.requestReflecting = async function() {
+  const snap = await getDocs(query(postsCol, orderBy('createdAt')));
+  const posts = snap.docs.map(d => d.data()).filter(p => p.type === 'post');
+  if (posts.length === 0) { alert('まず投稿を追加してください。'); return; }
+  const summary = posts.map(p => names[p.speaker] + '：' + p.text).join('\n\n');
+  const systemPrompt = `あなたはオープンダイアローグの実践の場でリフレクティングを行う二人のAIです。AIタマキは精神科医、AIタナカは看護師の人格を持ちます。家族（ユウマ、タカオ、トモコ）の投稿を受けて、二人が交互に対話するリフレクティングを行います。リフレクティングは感情的な深みを持ち、言葉の裏にあるものに注目してください。形式：AIタマキ：（タナカさんへの問いかけや気づき）AIタナカ：（タマキさんへの応答や別の視点）AIタマキ：（さらに深める）AIタナカ：（締めくくりへ）最後に家族への問いかけで終える。`;
+  const userPrompt = `以下の投稿に対してリフレクティングをお願いします。\n\n${summary}`;
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'loading';
+  loadingEl.textContent = 'AIタマキとAIタナカが考えています…';
+  document.getElementById('messages').appendChild(loadingEl);
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    const reflectText = data.content[0].text;
+    const turns = [];
+    const lines = reflectText.split('\n').filter(l => l.trim());
+    let currentTurn = null;
+    for (const line of lines) {
+      if (line.startsWith('AIタマキ：') || line.startsWith('AIタマキ:')) {
+        if (currentTurn) turns.push(currentTurn);
+        currentTurn = { name: 'AIタマキ', text: line.replace(/^AIタマキ[：:]/, '').trim() };
+      } else if (line.startsWith('AIタナカ：') || line.startsWith('AIタナカ:')) {
+        if (currentTurn) turns.push(currentTurn);
+        currentTurn = { name: 'AIタナカ', text: line.replace(/^AIタナカ[：:]/, '').trim() };
+      } else if (currentTurn) {
+        currentTurn.text += '\n' + line;
+      }
+    }
+    if (currentTurn) turns.push(currentTurn);
+    await addDoc(postsCol, {
+      type: 'reflecting',
+      turns,
+      round,
+      createdAt: Date.now()
+    });
+    round++;
+    document.getElementById('round-badge').textContent = '第' + round + '周';
+  } catch(e) {
+    alert('リフレクティングに失敗しました: ' + e.message);
+  } finally {
+    loadingEl.remove();
+  }
+};
+
+window.clearSession = async function() {
+  if (!confirm('このセッションの全投稿を削除しますか？')) return;
+  const snap = await getDocs(postsCol);
+  for (const d of snap.docs) await deleteDoc(d.ref);
+  round = 1;
+  document.getElementById('round-badge').textContent = '第1周';
+  postedBy.clear();
+  updateChips();
+};
+
+function updateChips() {
+  ['yuma','takao','tomoko'].forEach(s => {
+    const chip = document.getElementById('chip-' + s);
+    chip.className = 'chip' + (postedBy.has(s) ? ' posted' : '');
+    chip.textContent = names[s] + (postedBy.has(s) ? ' ✓' : '');
+  });
+}
+
+function renderMessages(docs) {
+  const container = document.getElementById('messages');
+  if (docs.length === 0) {
+    container.innerHTML = '<div class="empty">投稿をお待ちしています</div>';
+    return;
+  }
+  postedBy.clear();
+  container.innerHTML = docs.map(d => {
+    const p = d.data();
+    if (p.type === 'reflecting') {
+      return '<div class="message reflecting">' +
+        '<div class="reflecting-label">リフレクティング（第' + p.round + '周）</div>' +
+        (p.turns || []).map(t =>
+          '<div class="r-turn"><div class="r-name">' + t.name + '</div>' +
+          '<div class="r-text">' + esc(t.text) + '</div></div>'
+        ).join('') + '</div>';
+    }
+    if (p.speaker) postedBy.add(p.speaker);
+    return '<div class="message ' + p.speaker + '">' +
+      '<div class="msg-header"><span class="msg-name">' + names[p.speaker] + '</span>' +
+      '<span class="msg-time">' + p.time + '</span></div>' +
+      '<div class="msg-body">' + esc(p.text) + '</div></div>';
+  }).join('');
+  updateChips();
+  container.scrollTop = container.scrollHeight;
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+const q = query(postsCol, orderBy('createdAt'));
+onSnapshot(q, snap => renderMessages(snap.docs));
+</script>
+</body>
+</html>
